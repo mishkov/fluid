@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 
 import 'dart:async';
+import 'dart:js' as js;
 import 'dart:html' as html;
 
 import 'package:crop_your_image/crop_your_image.dart';
@@ -266,6 +267,8 @@ class Editor extends StatefulWidget {
   State<Editor> createState() => _EditorState();
 }
 
+enum ExportWay { clipboard, download }
+
 class _EditorState extends State<Editor> {
   final _cropController = CropController();
   StreamSubscription? _onCopyEvent;
@@ -280,6 +283,7 @@ class _EditorState extends State<Editor> {
   ];
   SelectionOption? _selectedRatio;
   double? _aspectRatioValue;
+  ExportWay _lastSelectedExportWay = ExportWay.download;
 
   @override
   void initState() {
@@ -297,6 +301,7 @@ class _EditorState extends State<Editor> {
         .first
         .on['copy']
         .listen((event) {
+      _lastSelectedExportWay = ExportWay.clipboard;
       _cropController.crop();
     });
   }
@@ -344,7 +349,14 @@ class _EditorState extends State<Editor> {
                 });
               },
               onCropped: (image) {
-                Pasteboard.writeImage(image);
+                if (_lastSelectedExportWay == ExportWay.clipboard) {
+                  Pasteboard.writeImage(image);
+                } else if (_lastSelectedExportWay == ExportWay.download) {
+                  js.context.callMethod("webSaveAs", [
+                    html.Blob([image]),
+                    "cropped.png",
+                  ]);
+                }
               },
             ),
           ),
@@ -368,9 +380,20 @@ class _EditorState extends State<Editor> {
                 value: _selectedRatio,
                 hint: const Text('Select aspect ratio'),
               ),
-              const Spacer(),
+              const SizedBox(height: 4),
               SelectableText(
                 'Current: 1 : ${_aspectRatioValue?.toStringAsFixed(3)}',
+              ),
+              const Spacer(),
+              Align(
+                alignment: Alignment.center,
+                child: ElevatedButton(
+                  onPressed: () {
+                    _lastSelectedExportWay = ExportWay.download;
+                    _cropController.crop();
+                  },
+                  child: const Text('Download'),
+                ),
               ),
             ],
           ),
