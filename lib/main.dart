@@ -273,6 +273,8 @@ class _EditorState extends State<Editor> {
   final List<AspectRatio> _ratios = [
     AspectRatio(width: 507, height: 512),
     AspectRatio(width: 4, height: 3),
+    AspectRatio(width: 1, height: 2),
+    AspectRatio(width: 2, height: 1),
     AspectRatio(width: 1, height: 1, name: 'square'),
   ];
   AspectRatio? _ratio;
@@ -305,6 +307,7 @@ class _EditorState extends State<Editor> {
 
     setState(() {
       _ratio = newRation;
+      _cropController.aspectRatio = newRation.value;
     });
   }
 
