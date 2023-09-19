@@ -1,9 +1,10 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 
-import 'dart:js' as js;
 import 'dart:html' as html;
+import 'dart:js' as js;
 
 import 'package:crop_your_image/crop_your_image.dart';
+import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dropzone/flutter_dropzone.dart';
@@ -20,8 +21,6 @@ class MyApp extends StatefulWidget {
 enum EditStage { pickup, editing }
 
 class _MyAppState extends State<MyApp> {
-  DropzoneViewController? controller;
-  bool highlighted = false;
   EditStage _stage = EditStage.pickup;
 
   final _cropController = CropController();
@@ -68,54 +67,34 @@ class _MyAppState extends State<MyApp> {
                   : const Center(
                       child: Text('_imageBytes is null!'),
                     )
-              : Container(
-                  color: highlighted ? Colors.red : Colors.green,
-                  child: Stack(
-                    children: [
-                      DropzoneView(
-                        operation: DragOperation.copy,
-                        cursor: CursorType.grab,
-                        onCreated: (ctrl) => controller = ctrl,
-                        onHover: () {
-                          setState(() {
-                            highlighted = true;
-                          });
-                        },
-                        onLeave: () {
-                          setState(() {
-                            highlighted = false;
-                          });
-                        },
-                        onDrop: _handleFile,
-                      ),
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('Drop something here'),
-                            const Text('or'),
-                            ElevatedButton(
-                              onPressed: () async {
-                                if (controller == null) {
-                                  return;
-                                }
-
-                                final files = await controller!.pickFiles(
-                                    mime: ['image/jpeg', 'image/png']);
-                                await _handleFile(files.firstOrNull);
-                              },
-                              child: const Text('Pick file'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+              : Uploader(
+                  onUpload: (file) {
+                    setState(() {
+                      _originImageBytes = file;
+                    });
+                  },
                 ),
         ),
       ),
     );
   }
+}
+
+class Uploader extends StatefulWidget {
+  const Uploader({
+    Key? key,
+    required this.onUpload,
+  }) : super(key: key);
+
+  final void Function(Uint8List file) onUpload;
+
+  @override
+  State<Uploader> createState() => _UploaderState();
+}
+
+class _UploaderState extends State<Uploader> {
+  DropzoneViewController? controller;
+  bool highlighted = false;
 
   Future<void> _handleFile(file) async {
     if (file == null) {
@@ -128,9 +107,101 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       highlighted = false;
     });
-    _originImageBytes = await controller?.getFileData(file);
-    setState(() {
-      _stage = EditStage.editing;
-    });
+    final bytes = await controller?.getFileData(file);
+    if (bytes != null) {
+      widget.onUpload(bytes);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const borderRadius = 5.0;
+    const borderPadding = 8.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: highlighted ? Colors.amber : Colors.green,
+        borderRadius: BorderRadius.circular(borderRadius + borderPadding),
+      ),
+      child: DottedBorder(
+        color: Colors.white,
+        strokeWidth: 3,
+        padding: const EdgeInsets.all(borderPadding),
+        borderType: BorderType.RRect,
+        borderPadding: const EdgeInsets.all(borderPadding),
+        radius: const Radius.circular(borderRadius),
+        dashPattern: const [12, 8],
+        child: Stack(
+          children: [
+            DropzoneView(
+              operation: DragOperation.copy,
+              cursor: CursorType.grab,
+              onCreated: (ctrl) => controller = ctrl,
+              onHover: () {
+                setState(() {
+                  highlighted = true;
+                });
+              },
+              onLeave: () {
+                setState(() {
+                  highlighted = false;
+                });
+              },
+              onDrop: _handleFile,
+            ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.upload_file,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Drop something here',
+                    style: TextStyle(
+                      fontSize: 24,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Text(
+                    'or',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (controller == null) {
+                        return;
+                      }
+
+                      final files = await controller!
+                          .pickFiles(mime: ['image/jpeg', 'image/png']);
+                      await _handleFile(files.firstOrNull);
+                    },
+                    style: ButtonStyle(
+                        padding: MaterialStatePropertyAll(
+                            const EdgeInsets.all(16.0))),
+                    child: const Text(
+                      'Choose file',
+                      style: TextStyle(
+                        fontSize: 24,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
