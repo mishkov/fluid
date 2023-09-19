@@ -286,6 +286,11 @@ class _EditorState extends State<Editor> {
     super.initState();
 
     _selectedRatio = _ratios.first;
+    if (_selectedRatio is FixedAspectRatio) {
+      final ratio = _selectedRatio as FixedAspectRatio;
+
+      _aspectRatioValue = ratio.value;
+    }
 
     _onCopyEvent = html.document
         .getElementsByTagName('body')
@@ -333,6 +338,11 @@ class _EditorState extends State<Editor> {
               image: widget.rawImage,
               controller: _cropController,
               baseColor: Colors.transparent,
+              onMoved: (value) {
+                setState(() {
+                  _aspectRatioValue = value.width / value.height;
+                });
+              },
               onCropped: (image) {
                 Pasteboard.writeImage(image);
               },
@@ -357,6 +367,10 @@ class _EditorState extends State<Editor> {
                 onChanged: _onAspectRatioChanged,
                 value: _selectedRatio,
                 hint: const Text('Select aspect ratio'),
+              ),
+              const Spacer(),
+              SelectableText(
+                'Current: 1 : ${_aspectRatioValue?.toStringAsFixed(3)}',
               ),
             ],
           ),
