@@ -55,14 +55,6 @@ class _HomePageState extends State<HomePage> {
             ? _originImageBytes != null
                 ? Editor(
                     rawImage: _originImageBytes!,
-                    onDone: (image) {
-                      setState(() {
-                        js.context.callMethod("webSaveAs", [
-                          html.Blob([image]),
-                          "cropped.png",
-                        ]);
-                      });
-                    },
                   )
                 : const Center(
                     child: Text('_imageBytes is null!'),
@@ -237,45 +229,45 @@ class Editor extends StatefulWidget {
   const Editor({
     Key? key,
     required this.rawImage,
-    required this.onDone,
   }) : super(key: key);
 
   final Uint8List rawImage;
-  final void Function(Uint8List image) onDone;
 
   @override
   State<Editor> createState() => _EditorState();
 }
 
 class _EditorState extends State<Editor> {
-  final focusNode = FocusNode();
   final _cropController = CropController();
-  Uint8List? _croppedImageBytes;
+  StreamSubscription? _onCopyEvent;
+
+  @override
+  void initState() {
+    super.initState();
+    _onCopyEvent = html.document
+        .getElementsByTagName('body')
+        .first
+        .on['copy']
+        .listen((event) {
+      _cropController.crop();
+    });
+  }
+
+  @override
+  void dispose() {
+    _onCopyEvent?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
-      autofocus: true,
-      focusNode: focusNode,
-      onKey: (event) {
-        if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
-          _cropController.crop();
-        }
+    return Crop(
+      aspectRatio: 547 / 470,
+      image: widget.rawImage,
+      controller: _cropController,
+      onCropped: (image) {
+        Pasteboard.writeImage(image);
       },
-      child: Crop(
-        aspectRatio: 547 / 470,
-        image: widget.rawImage,
-        controller: _cropController,
-        onCropped: (image) {
-          setState(() {
-            _croppedImageBytes = image;
-            js.context.callMethod("webSaveAs", [
-              html.Blob([_croppedImageBytes]),
-              "cropped.png",
-            ]);
-          });
-        },
-      ),
     );
   }
 }
