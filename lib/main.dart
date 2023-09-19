@@ -49,17 +49,17 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Fluid'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: _stage == EditStage.editing
-            ? _originImageBytes != null
-                ? Editor(
-                    rawImage: _originImageBytes!,
-                  )
-                : const Center(
-                    child: Text('_imageBytes is null!'),
-                  )
-            : Uploader(
+      body: _stage == EditStage.editing
+          ? _originImageBytes != null
+              ? Editor(
+                  rawImage: _originImageBytes!,
+                )
+              : const Center(
+                  child: Text('_imageBytes is null!'),
+                )
+          : Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Uploader(
                 onUpload: (file) {
                   setState(() {
                     _originImageBytes = file;
@@ -67,7 +67,7 @@ class _HomePageState extends State<HomePage> {
                   });
                 },
               ),
-      ),
+            ),
     );
   }
 }
@@ -261,13 +261,19 @@ class _EditorState extends State<Editor> {
 
   @override
   Widget build(BuildContext context) {
-    return Crop(
-      aspectRatio: 547 / 470,
-      image: widget.rawImage,
-      controller: _cropController,
-      onCropped: (image) {
-        Pasteboard.writeImage(image);
-      },
+    return Container(
+      color: Colors.black,
+      padding: const EdgeInsets.all(32.0),
+      child: Crop(
+        aspectRatio: 547 / 470,
+        image: widget.rawImage,
+        controller: _cropController,
+        baseColor: Colors.transparent,
+        interactive: false,
+        onCropped: (image) {
+          Pasteboard.writeImage(image);
+        },
+      ),
     );
   }
 }
