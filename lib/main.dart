@@ -270,20 +270,22 @@ class _EditorState extends State<Editor> {
   final _cropController = CropController();
   StreamSubscription? _onCopyEvent;
 
-  final List<AspectRatio> _ratios = [
-    AspectRatio(width: 507, height: 512),
-    AspectRatio(width: 4, height: 3),
-    AspectRatio(width: 1, height: 2),
-    AspectRatio(width: 2, height: 1),
-    AspectRatio(width: 1, height: 1, name: 'square'),
+  final List<SelectionOption> _ratios = [
+    FreeAspectRatio(),
+    FixedAspectRatio(width: 507, height: 512),
+    FixedAspectRatio(width: 4, height: 3),
+    FixedAspectRatio(width: 1, height: 2),
+    FixedAspectRatio(width: 2, height: 1),
+    FixedAspectRatio(width: 1, height: 1, name: 'square'),
   ];
-  AspectRatio? _ratio;
+  SelectionOption? _selectedRatio;
+  double? _aspectRatioValue;
 
   @override
   void initState() {
     super.initState();
 
-    _ratio = _ratios.first;
+    _selectedRatio = _ratios.first;
 
     _onCopyEvent = html.document
         .getElementsByTagName('body')
@@ -300,14 +302,21 @@ class _EditorState extends State<Editor> {
     super.dispose();
   }
 
-  void _onAspectRatioChanged(AspectRatio? newRation) {
+  void _onAspectRatioChanged(SelectionOption? newRation) {
     if (newRation == null) {
       return;
     }
 
     setState(() {
-      _ratio = newRation;
-      _cropController.aspectRatio = newRation.value;
+      _selectedRatio = newRation;
+
+      if (newRation is FreeAspectRatio) {
+        _aspectRatioValue = null;
+        _cropController.aspectRatio = null;
+      } else if (newRation is FixedAspectRatio) {
+        _aspectRatioValue = newRation.value;
+        _cropController.aspectRatio = newRation.value;
+      }
     });
   }
 
@@ -320,11 +329,10 @@ class _EditorState extends State<Editor> {
             color: Colors.black,
             padding: const EdgeInsets.all(32.0),
             child: Crop(
-              aspectRatio: _ratio?.value,
+              aspectRatio: _aspectRatioValue,
               image: widget.rawImage,
               controller: _cropController,
               baseColor: Colors.transparent,
-              interactive: false,
               onCropped: (image) {
                 Pasteboard.writeImage(image);
               },
@@ -335,17 +343,19 @@ class _EditorState extends State<Editor> {
           padding: const EdgeInsets.all(8.0),
           width: 250,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              DropdownButtonFormField<AspectRatio>(
+              const Text('Aspect ratio'),
+              DropdownButtonFormField<SelectionOption>(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                items: _ratios.map<DropdownMenuItem<AspectRatio>>((ratio) {
-                  return DropdownMenuItem<AspectRatio>(
+                items: _ratios.map<DropdownMenuItem<SelectionOption>>((ratio) {
+                  return DropdownMenuItem<SelectionOption>(
                     value: ratio,
                     child: Text(ratio.toString()),
                   );
                 }).toList(),
                 onChanged: _onAspectRatioChanged,
-                value: _ratio,
+                value: _selectedRatio,
                 hint: const Text('Select aspect ratio'),
               ),
             ],
@@ -356,15 +366,27 @@ class _EditorState extends State<Editor> {
   }
 }
 
-class AspectRatio {
-  final double width;
-  final double height;
+abstract class SelectionOption {
   final String? name;
 
-  AspectRatio({
+  SelectionOption({this.name});
+
+  @override
+  String toString() => name ?? 'no name';
+}
+
+class FreeAspectRatio extends SelectionOption {
+  FreeAspectRatio() : super(name: 'free');
+}
+
+class FixedAspectRatio extends SelectionOption {
+  final double width;
+  final double height;
+
+  FixedAspectRatio({
     required this.width,
     required this.height,
-    this.name,
+    super.name,
   });
 
   double get value => width / height;
@@ -376,7 +398,7 @@ class AspectRatio {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
-    return other is AspectRatio &&
+    return other is FixedAspectRatio &&
         other.width == width &&
         other.height == height &&
         other.name == name;
