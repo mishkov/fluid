@@ -294,7 +294,7 @@ class _EditorState extends State<Editor> {
       color: Colors.black,
       padding: const EdgeInsets.all(32.0),
       child: Crop(
-        aspectRatio: 547 / 470,
+        aspectRatio: 507 / 512,
         image: widget.rawImage,
         controller: _cropController,
         baseColor: Colors.transparent,
