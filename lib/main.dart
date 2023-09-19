@@ -69,7 +69,7 @@ class _HomePageState extends State<HomePage> {
                 applicationVersion: _packageInfo?.version,
                 applicationLegalese: 'Mishkov Mikita',
                 children: [
-                  Text(
+                  const Text(
                       'You can use ctrl+p to paste the image to edit. Also you can use ctrl+c to copy cropped image.')
                 ],
               );
@@ -270,9 +270,19 @@ class _EditorState extends State<Editor> {
   final _cropController = CropController();
   StreamSubscription? _onCopyEvent;
 
+  final List<AspectRatio> _ratios = [
+    AspectRatio(width: 507, height: 512),
+    AspectRatio(width: 4, height: 3),
+    AspectRatio(width: 1, height: 1, name: 'square'),
+  ];
+  AspectRatio? _ratio;
+
   @override
   void initState() {
     super.initState();
+
+    _ratio = _ratios.first;
+
     _onCopyEvent = html.document
         .getElementsByTagName('body')
         .first
@@ -288,21 +298,87 @@ class _EditorState extends State<Editor> {
     super.dispose();
   }
 
+  void _onAspectRatioChanged(AspectRatio? newRation) {
+    if (newRation == null) {
+      return;
+    }
+
+    setState(() {
+      _ratio = newRation;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      padding: const EdgeInsets.all(32.0),
-      child: Crop(
-        aspectRatio: 507 / 512,
-        image: widget.rawImage,
-        controller: _cropController,
-        baseColor: Colors.transparent,
-        interactive: false,
-        onCropped: (image) {
-          Pasteboard.writeImage(image);
-        },
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            color: Colors.black,
+            padding: const EdgeInsets.all(32.0),
+            child: Crop(
+              aspectRatio: _ratio?.value,
+              image: widget.rawImage,
+              controller: _cropController,
+              baseColor: Colors.transparent,
+              interactive: false,
+              onCropped: (image) {
+                Pasteboard.writeImage(image);
+              },
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.all(8.0),
+          width: 250,
+          child: Column(
+            children: [
+              DropdownButtonFormField<AspectRatio>(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                items: _ratios.map<DropdownMenuItem<AspectRatio>>((ratio) {
+                  return DropdownMenuItem<AspectRatio>(
+                    value: ratio,
+                    child: Text(ratio.toString()),
+                  );
+                }).toList(),
+                onChanged: _onAspectRatioChanged,
+                value: _ratio,
+                hint: const Text('Select aspect ratio'),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
+}
+
+class AspectRatio {
+  final double width;
+  final double height;
+  final String? name;
+
+  AspectRatio({
+    required this.width,
+    required this.height,
+    this.name,
+  });
+
+  double get value => width / height;
+
+  @override
+  String toString() => name ?? '$width:$height';
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is AspectRatio &&
+        other.width == width &&
+        other.height == height &&
+        other.name == name;
+  }
+
+  @override
+  int get hashCode => width.hashCode ^ height.hashCode ^ name.hashCode;
 }
