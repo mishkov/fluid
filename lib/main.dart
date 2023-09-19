@@ -2,16 +2,19 @@
 
 import 'dart:async';
 import 'dart:html' as html;
-import 'dart:js' as js;
 
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dropzone/flutter_dropzone.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pasteboard/pasteboard.dart';
 
-void main() => runApp(const MyApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MyApp());
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -26,6 +29,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: HomePage(),
     );
   }
@@ -42,12 +46,37 @@ class _HomePageState extends State<HomePage> {
   EditStage _stage = EditStage.pickup;
 
   Uint8List? _originImageBytes;
+  PackageInfo? _packageInfo;
+
+  @override
+  void initState() {
+    super.initState();
+
+    PackageInfo.fromPlatform().then((value) => _packageInfo = value);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fluid'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              showAboutDialog(
+                context: context,
+                applicationName: 'Fluid',
+                applicationVersion: _packageInfo?.version,
+                applicationLegalese: 'Mishkov Mikita',
+                children: [
+                  Text(
+                      'You can use ctrl+p to paste the image to edit. Also you can use ctrl+c to copy cropped image.')
+                ],
+              );
+            },
+            icon: const Icon(Icons.help),
+          ),
+        ],
       ),
       body: _stage == EditStage.editing
           ? _originImageBytes != null
