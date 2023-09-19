@@ -71,6 +71,7 @@ class _MyAppState extends State<MyApp> {
                   onUpload: (file) {
                     setState(() {
                       _originImageBytes = file;
+                      _stage = EditStage.editing;
                     });
                   },
                 ),
