@@ -258,7 +258,6 @@ class _EditorState extends State<Editor> {
       autofocus: true,
       focusNode: focusNode,
       onKey: (event) {
-        // if (event.isKeyPressed(Paste))
         if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
           _cropController.crop();
         }
