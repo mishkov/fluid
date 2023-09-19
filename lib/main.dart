@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 
+import 'dart:async';
 import 'dart:html' as html;
 import 'dart:js' as js;
 
@@ -8,6 +9,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dropzone/flutter_dropzone.dart';
+import 'package:pasteboard/pasteboard.dart';
 
 void main() => runApp(const MyApp());
 
@@ -21,61 +23,58 @@ class MyApp extends StatefulWidget {
 enum EditStage { pickup, editing }
 
 class _MyAppState extends State<MyApp> {
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      home: HomePage(),
+    );
+  }
+}
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   EditStage _stage = EditStage.pickup;
 
-  final _cropController = CropController();
-
   Uint8List? _originImageBytes;
-  Uint8List? _croppedImageBytes;
-
-  var focusNode = FocusNode();
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Fluid'),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: _stage == EditStage.editing
-              ? _originImageBytes != null
-                  ? RawKeyboardListener(
-                      autofocus: true,
-                      focusNode: focusNode,
-                      onKey: (event) {
-                        if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
-                          _cropController.crop();
-                        }
-                      },
-                      child: Crop(
-                        aspectRatio: 547 / 470,
-                        image: _originImageBytes!,
-                        controller: _cropController,
-                        onCropped: (image) {
-                          setState(() {
-                            _croppedImageBytes = image;
-                            js.context.callMethod("webSaveAs", [
-                              html.Blob([_croppedImageBytes]),
-                              "cropped.png",
-                            ]);
-                          });
-                        },
-                      ),
-                    )
-                  : const Center(
-                      child: Text('_imageBytes is null!'),
-                    )
-              : Uploader(
-                  onUpload: (file) {
-                    setState(() {
-                      _originImageBytes = file;
-                      _stage = EditStage.editing;
-                    });
-                  },
-                ),
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Fluid'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: _stage == EditStage.editing
+            ? _originImageBytes != null
+                ? Editor(
+                    rawImage: _originImageBytes!,
+                    onDone: (image) {
+                      setState(() {
+                        js.context.callMethod("webSaveAs", [
+                          html.Blob([image]),
+                          "cropped.png",
+                        ]);
+                      });
+                    },
+                  )
+                : const Center(
+                    child: Text('_imageBytes is null!'),
+                  )
+            : Uploader(
+                onUpload: (file) {
+                  setState(() {
+                    _originImageBytes = file;
+                    _stage = EditStage.editing;
+                  });
+                },
+              ),
       ),
     );
   }
@@ -96,6 +95,33 @@ class Uploader extends StatefulWidget {
 class _UploaderState extends State<Uploader> {
   DropzoneViewController? controller;
   bool highlighted = false;
+  StreamSubscription? _onPasteEvent;
+
+  @override
+  void initState() {
+    super.initState();
+    _onPasteEvent = html.document
+        .getElementsByTagName('body')
+        .first
+        .on['paste']
+        .listen((event) {
+      Pasteboard.image.then(_handleImageFromClipBoard);
+    });
+  }
+
+  @override
+  void dispose() {
+    _onPasteEvent?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleImageFromClipBoard(Uint8List? image) async {
+    if (image == null) {
+      return;
+    }
+
+    widget.onUpload(image);
+  }
 
   Future<void> _handleFile(file) async {
     if (file == null) {
@@ -185,9 +211,9 @@ class _UploaderState extends State<Uploader> {
                           .pickFiles(mime: ['image/jpeg', 'image/png']);
                       await _handleFile(files.firstOrNull);
                     },
-                    style: ButtonStyle(
-                        padding: MaterialStatePropertyAll(
-                            const EdgeInsets.all(16.0))),
+                    style: const ButtonStyle(
+                      padding: MaterialStatePropertyAll(EdgeInsets.all(16.0)),
+                    ),
                     child: const Text(
                       'Choose file',
                       style: TextStyle(
@@ -202,6 +228,54 @@ class _UploaderState extends State<Uploader> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class Editor extends StatefulWidget {
+  const Editor({
+    Key? key,
+    required this.rawImage,
+    required this.onDone,
+  }) : super(key: key);
+
+  final Uint8List rawImage;
+  final void Function(Uint8List image) onDone;
+
+  @override
+  State<Editor> createState() => _EditorState();
+}
+
+class _EditorState extends State<Editor> {
+  final focusNode = FocusNode();
+  final _cropController = CropController();
+  Uint8List? _croppedImageBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return RawKeyboardListener(
+      autofocus: true,
+      focusNode: focusNode,
+      onKey: (event) {
+        // if (event.isKeyPressed(Paste))
+        if (event.isKeyPressed(LogicalKeyboardKey.enter)) {
+          _cropController.crop();
+        }
+      },
+      child: Crop(
+        aspectRatio: 547 / 470,
+        image: widget.rawImage,
+        controller: _cropController,
+        onCropped: (image) {
+          setState(() {
+            _croppedImageBytes = image;
+            js.context.callMethod("webSaveAs", [
+              html.Blob([_croppedImageBytes]),
+              "cropped.png",
+            ]);
+          });
+        },
       ),
     );
   }
