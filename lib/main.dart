@@ -271,8 +271,8 @@ class _EditorState extends State<Editor> {
   StreamSubscription? _onCopyEvent;
 
   final List<SelectionOption> _ratios = [
-    FreeAspectRatio(),
     FixedAspectRatio(width: 507, height: 512),
+    FreeAspectRatio(),
     FixedAspectRatio(width: 4, height: 3),
     FixedAspectRatio(width: 1, height: 2),
     FixedAspectRatio(width: 2, height: 1),
